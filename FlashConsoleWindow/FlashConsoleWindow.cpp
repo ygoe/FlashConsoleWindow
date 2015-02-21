@@ -1,9 +1,13 @@
-#define WINVER 0x501
-#define _WIN32_WINNT 0x501
+#define WINVER 0x601
+#define _WIN32_WINNT 0x601
 
 #include <windows.h>
 #include <stdio.h>
 #include "Win7TaskbarProgress.h"
+#include <Propvarutil.h>
+#include <propkey.h>
+#include <Shellapi.h>
+#include <time.h>
 
 // Source: http://stackoverflow.com/questions/3560018/triggering-taskbar-button-flash-from-batch-file
 
@@ -23,6 +27,22 @@ void ChangeIcon(const HICON hNewIcon)
 	pfnSetConsoleIcon(hNewIcon);
  
 	FreeLibrary(hMod);
+}
+
+// Source: https://msdn.microsoft.com/en-us/magazine/dd942846.aspx
+void ChangeApplicationId(HWND hWnd)
+{
+	wchar_t appId[100];
+	srand((unsigned int) time(NULL));
+	wsprintf(appId, TEXT("fcw_random_%d%d%d"), rand(), rand(), rand());
+
+	PROPVARIANT pv;
+	InitPropVariantFromString(appId, &pv);
+
+	IPropertyStore* pps;
+	SHGetPropertyStoreForWindow(hWnd, IID_PPV_ARGS(&pps));
+	pps->SetValue(PKEY_AppUserModel_ID, pv);
+	pps->Commit();
 }
 
 void main(int argc, char **argv)
@@ -97,6 +117,11 @@ void main(int argc, char **argv)
 					{
 						SendMessage(hWnd, WM_SETICON, ICON_SMALL, (LPARAM) hSmallIcon);
 					}
+
+					if (argc > 3 && !strcmp(argv[3], "-appid"))
+					{
+						ChangeApplicationId(hWnd);
+					}
 				}
 				else
 				{
@@ -107,6 +132,11 @@ void main(int argc, char **argv)
 			{
 				fprintf(stderr, "Icon requested but no file specified.\n");
 			}
+		}
+		else if (!strcmp(argv[1], "-appid"))
+		{
+			// Shouldn't be useful on its own but offer it stand-alone, too, as we already have it
+			ChangeApplicationId(hWnd);
 		}
 		else if (!strcmp(argv[1], "-help") || !strcmp(argv[1], "/help") ||
 			!strcmp(argv[1], "-h") || !strcmp(argv[1], "-?") || !strcmp(argv[1], "/?"))
@@ -121,8 +151,12 @@ void main(int argc, char **argv)
 			printf("  -flash          Flashes the taskbar item until -noflash is set.\n");
 			printf("  -flash n        Flashes the taskbar item n times until -noflash is set.\n");
 			printf("  -noflash        Stops flashing the taskbar item.\n");
+			printf("  -appid          Assigns the window a new random application ID to ungroup\n");
+			printf("                  it from other console windows and promote its icon.\n");
 			printf("  -icon filename  Sets the console window icon from a .ico file.\n");
-			printf("                  NOTE: Does not change taskbar application group icon!\n");
+			printf("                  Append -appid to activate individual taskbar icon\n");
+			printf("                  (this is only needed once for all icons).\n");
+			printf("                  The default icon cannot be restored later.\n");
 			printf("  -help           Shows this information.\n");
 			printf("Only on Windows Vista and later:\n");
 			printf("  -progress n     Sets the progress to n percent (0...100).\n");
