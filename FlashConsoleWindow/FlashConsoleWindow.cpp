@@ -48,6 +48,12 @@ void ChangeApplicationId(HWND hWnd)
 void main(int argc, char **argv)
 {
 	HWND hWnd = GetConsoleWindow();
+	if (!hWnd)
+	{
+		// No console window available, nothing to do (ignore request)
+		return;
+	}
+
 	Win7TaskbarProgress tb;
 
 	if (argc > 1)
